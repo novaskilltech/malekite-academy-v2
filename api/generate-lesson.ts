@@ -1,90 +1,85 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 
-const lessonSchema = {
-  type: Type.OBJECT,
-  properties: {
-    title: { type: Type.STRING },
-    matn: { type: Type.STRING },
-    body: { type: Type.STRING },
-    detailedExamples: { type: Type.ARRAY, items: { type: Type.STRING } },
-    fiqhIssues: { type: Type.ARRAY, items: { type: Type.STRING } },
-    fiqhRiddles: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          riddle: { type: Type.STRING },
-          answer: { type: Type.STRING }
-        },
-        required: ['riddle', 'answer']
-      }
-    },
-    evidence: { type: Type.STRING },
-    comparativeFiqh: { type: Type.STRING },
-    references: { type: Type.ARRAY, items: { type: Type.STRING } },
-    quiz: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          question: { type: Type.STRING },
-          options: { type: Type.ARRAY, items: { type: Type.STRING } },
-          correctAnswer: { type: Type.INTEGER },
-          explanation: { type: Type.STRING }
-        },
-        required: ['question', 'options', 'correctAnswer', 'explanation']
-      }
-    }
-  },
-  required: [
-    'title',
-    'matn',
-    'body',
-    'detailedExamples',
-    'fiqhIssues',
-    'fiqhRiddles',
-    'evidence',
-    'comparativeFiqh',
-    'references',
-    'quiz'
-  ]
-};
-
-const allowedModels = new Set(['gemini-3-flash-preview', 'gemini-3-pro-preview']);
-
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Gemini API key is not configured' });
-  }
-
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const model = allowedModels.has(body?.model) ? body.model : 'gemini-3-flash-preview';
-    const contents = typeof body?.contents === 'string' ? body.contents : '';
+    const { topic, levelId } = req.body;
 
-    if (!contents.trim()) {
-      return res.status(400).json({ error: 'Missing lesson prompt' });
+    if (!topic || !levelId) {
+      return res.status(400).json({ error: 'Missing topic or levelId' });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model,
-      contents,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: lessonSchema
-      }
+    const prompt = `أَنْتَ عَالِمٌ وَبَاحِثٌ مَالِكِيٌّ رَفِيعُ المُسْتَوَى. قُمْ بِإِعْدَادِ دَرْسٍ لِـ "${topic}" بِمُسْتَوَى "${levelId}" يُعَادِلُ الدِّرَاسَاتِ العُلْيَا فِي المَعَاهِدِ الشَّرْعِيَّةِ الكُبْرَى.
+
+      يَجِبُ أَنْ يَكُونَ المُحْتَوَى "سَخِيًّا بِالعِلْمِ" وَكَثِيفًا وَمُوَجَّهًا لِطُلَّابِ العِلْمِ الجَادِّينَ، مَعَ الِالْتِزَامِ التَّامِّ بِمَذْهَبِ الإِمَامِ مَالِكِ بْنِ أَنَسٍ وَالمُصْطَلَحَاتِ الدَّقِيقَةِ (المُعْتَمَد، الأَشْهَر، المَشْهُور، مَا جَرَى بِهِ العَمَل).
+
+      الهَيْكَلُ المَطْلُوبُ (8 أَجْزَاءٍ أَسَاسِيَّةٍ):
+      1. nazmOrMatn: نَصٌّ مُوَثَّقٌ مِنَ المَصَادِرِ المَالِكِيَّةِ الأَصْلِيَّةِ.
+      2. content: تَقْرِيرٌ فِقْهِيٌّ مَتِينٌ يَشْرَحُ المَسَائِلَ بِعُمْقٍ.
+      3. evidence: اسْتِخْرَاجُ الأَحْكَامِ بِالمَنْهَجِيَّةِ الأُصُولِيَّةِ.
+      4. examples: حَالَاتٌ نَادِرَةٌ أَوْ مُعَاصِرَةٌ.
+      5. riddles: لُغْزٌ فِقْهِيٌّ.
+      6. comparativeFiqh: تَحْلِيلُ الخِلَافِ العَالِي مَعَ تَرْجِيحِ المَالِكِيَّةِ.
+      7. references: التَّوْثِيقُ مِنَ المَصَادِرِ الأُمِّ.
+      8. quiz: 7 أَسْئِلَةٍ مَنْهَجِيَّةٍ دَقِيقَةٍ.
+
+      أَرْجِعِ النَّتِيجَةَ بِصِيغَةِ JSON حَصْرًا. تَقَيَّدْ بِالتَّشْكِيلِ الكَامِلِ.
+      مُلَاحَظَةٌ هَامَّةٌ: لَا تَضَعِ اسْمَ المُسْتَوَى (مِثْلُ: "مُبْتَدِئ" أَوْ "BEGINNER") فِي حَقْلِ الـ "title"، بَلِ اكْتَفِ بِعُنْوَانِ الدَّرْسِ فَقَطْ.`;
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error('OpenRouter API key is not configured');
+
+    // Modèle élite sélectionné : Gemini 2.5 Pro
+    const model = 'google/gemini-2.5-pro-preview';
+    
+    console.log('--- [OPENROUTER OPTIMIZED CALL] ---');
+    console.log('Model:', model);
+    console.log('Topic:', topic);
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://malekite-academy.v2', // Identifie l'app sur OpenRouter
+        'X-Title': 'Malekite Academy v2', // Titre affiché dans vos stats OpenRouter
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+        temperature: 0.4, // Précision académique accrue
+        top_p: 0.9,
+        max_tokens: 4000
+      })
     });
 
-    return res.status(200).json(JSON.parse(response.text || '{}'));
-  } catch (error) {
-    console.error('generate-lesson failed', error);
-    return res.status(500).json({ error: 'Lesson generation failed' });
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Extraction de l'erreur détaillée selon la doc OpenRouter
+      const errorMsg = data.error?.message || `API Error ${response.status}`;
+      const errorCode = data.error?.code || 'unknown';
+      console.error(`[OPENROUTER ERROR] Code: ${errorCode} | Message: ${errorMsg}`);
+      throw new Error(`OpenRouter Error: ${errorMsg}`);
+    }
+
+    const responseText = data.choices?.[0]?.message?.content;
+    if (!responseText) throw new Error('No content received from model');
+
+    try {
+      const parsed = JSON.parse(responseText);
+      return res.status(200).json(parsed);
+    } catch (parseErr) {
+      console.error('JSON Parse Error. Content received:', responseText.substring(0, 500));
+      throw new Error('Le modèle a renvoyé un format invalide. Réessayez.');
+    }
+
+  } catch (error: any) {
+    console.error('Final Handler Error:', error.message);
+    return res.status(500).json({ error: error.message });
   }
 }

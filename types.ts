@@ -1,9 +1,17 @@
 
+export type Theme = 'light' | 'everest';
+export type Provider = 'google' | 'openai';
+
+export interface ModelConfig {
+  provider: Provider;
+  model: string;
+}
+
 export enum Level {
-  BEGINNER = 'BEGINNER',
-  INTERMEDIATE = 'INTERMEDIATE',
-  ADVANCED = 'ADVANCED',
-  EXPERT = 'EXPERT'
+  BEGINNER = 'مبتدئ',
+  INTERMEDIATE = 'متوسط',
+  ADVANCED = 'متقدم',
+  EXPERT = 'خبير'
 }
 
 export interface QuizQuestion {
@@ -13,21 +21,28 @@ export interface QuizQuestion {
   explanation: string;
 }
 
-export interface FiqhRiddle {
-  riddle: string;
+export interface Mnemonic {
+  verse: string;
+  explanation: string;
+}
+
+export interface Riddle {
+  question: string;
   answer: string;
 }
 
 export interface LessonContent {
   title: string;
-  matn: string;
-  body: string;
-  detailedExamples: string[];
-  fiqhIssues: string[];
-  fiqhRiddles: FiqhRiddle[];
-  evidence: string;
-  comparativeFiqh: string;
-  references: string[];
+  nazmOrMatn: string; // المتن أو النظم الموثق
+  introduction?: string;
+  content: string[]; // التقرير الفقهي (الشرح) - array of sections
+  evidence?: string; // الدليل بالمنهجية الأصولية
+  examples?: string[]; // الأمثلة المعاصرة والنادرة
+  importantIssues?: { title: string; content: string }[];
+  mnemonics?: Mnemonic[];
+  riddles: Riddle[];
+  comparativeFiqh?: string;
+  references?: string[];
   quiz: QuizQuestion[];
 }
 
@@ -43,7 +58,8 @@ export interface LevelConfig {
   title: string;
   description: string;
   mainText: string;
-  mainTextBio: string; // ترجمة مؤلف المتن المعتمد في المستوى
+  mainTextId?: string;
+  mainTextBio: string;
   topics: string[];
 }
 
@@ -51,10 +67,11 @@ export interface LibraryItem {
   id: string;
   title: string;
   author: string;
-  authorBio: string; // ترجمة المؤلف
-  recommendedEdition: string; // أفضل طبعة في السوق
+  authorBio: string;
+  recommendedEdition: string;
   description: string;
-  content: string; // النص الكامل للمتن
+  content: string;
   category: 'متون' | 'شروح' | 'أصول';
   level: Level;
+  url?: string; // Optionnel pour éviter les erreurs TS
 }

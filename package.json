@@ -5,22 +5,33 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "tsx api-server.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:api\"",
     "typecheck": "tsc --noEmit",
-    "test:smoke": "playwright test",
+    "test:e2e": "playwright test",
     "build": "vite build",
-    "preview": "vite preview"
+    "test": "vitest tests/integration"
   },
   "dependencies": {
     "@google/genai": "1.34.0",
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.105.1",
+    "@types/dotenv": "^6.1.1",
+    "dotenv": "^17.4.2",
     "lucide-react": "0.460.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.1",
+    "node-fetch": "^3.3.2",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^4.1.5"
   }
 }
