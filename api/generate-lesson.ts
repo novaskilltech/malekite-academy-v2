@@ -32,26 +32,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) throw new Error('OpenRouter API key is not configured');
 
-    // Modèle élite sélectionné : Gemini 2.5 Pro
     const model = 'google/gemini-2.5-pro-preview';
     
-    console.log('--- [OPENROUTER OPTIMIZED CALL] ---');
-    console.log('Model:', model);
-    console.log('Topic:', topic);
-
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://malekite-academy.v2', // Identifie l'app sur OpenRouter
-        'X-Title': 'Malekite Academy v2', // Titre affiché dans vos stats OpenRouter
+        'HTTP-Referer': 'https://malekite-academy.v2',
+        'X-Title': 'Malekite Academy v2',
       },
       body: JSON.stringify({
         model: model,
         messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        temperature: 0.4, // Précision académique accrue
+        temperature: 0.4,
         top_p: 0.9,
         max_tokens: 4000
       })
@@ -60,26 +54,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const data = await response.json();
 
     if (!response.ok) {
-      // Extraction de l'erreur détaillée selon la doc OpenRouter
       const errorMsg = data.error?.message || `API Error ${response.status}`;
-      const errorCode = data.error?.code || 'unknown';
-      console.error(`[OPENROUTER ERROR] Code: ${errorCode} | Message: ${errorMsg}`);
       throw new Error(`OpenRouter Error: ${errorMsg}`);
     }
 
     const responseText = data.choices?.[0]?.message?.content;
     if (!responseText) throw new Error('No content received from model');
 
+    let jsonStr = responseText.trim();
+    if (jsonStr.startsWith('```json')) {
+      jsonStr = jsonStr.slice(7);
+    } else if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.slice(3);
+    }
+    if (jsonStr.endsWith('```')) {
+      jsonStr = jsonStr.slice(0, -3);
+    }
+    jsonStr = jsonStr.trim();
+
     try {
-      const parsed = JSON.parse(responseText);
-      return res.status(200).json(parsed);
+      const parsed = JSON.parse(jsonStr);
+      
+      const contentStr = parsed.content || '';
+      const contentArray = typeof contentStr === 'string' 
+        ? contentStr.split(/\n\s*\n|\.\s*\n|\.(?=\s*[A-Zأ-ي])/).map((s: string) => s.trim()).filter((s: string) => s.length > 20)
+        : contentStr;
+
+      const result = {
+        title: parsed.title || `${topic} - ${levelId}`,
+        nazmOrMatn: parsed.nazmOrMatn || '',
+        introduction: parsed.introduction || '',
+        content: Array.isArray(contentArray) && contentArray.length > 0 ? contentArray : [contentStr],
+        evidence: parsed.evidence || '',
+        examples: parsed.examples || [],
+        importantIssues: parsed.importantIssues || [],
+        mnemonics: parsed.mnemonics || [],
+        riddles: parsed.riddles || [],
+        comparativeFiqh: parsed.comparativeFiqh || '',
+        references: parsed.references || [],
+        quiz: parsed.quiz || []
+      };
+
+      return res.status(200).json(result);
     } catch (parseErr) {
-      console.error('JSON Parse Error. Content received:', responseText.substring(0, 500));
+      console.error('JSON Parse Error:', jsonStr.substring(0, 500));
       throw new Error('Le modèle a renvoyé un format invalide. Réessayez.');
     }
 
   } catch (error: any) {
-    console.error('Final Handler Error:', error.message);
+    console.error('API Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

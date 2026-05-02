@@ -128,5 +128,11 @@ Ce document trace l'évolution technique et académique du projet. Toute modific
 
 ---  
 
-**Statut Actuel** : 🟢 **OPÉRATIONNEL COMPLET** (4 Niveaux, 100% Arabe, Matns Certifiés)
-**Tests** : Navigation fluide entre Dashboard et Bibliothèque, affichage correct des Matns.
+## [2026-05-03] — Phase 8 : Déploiement Cloud (Vercel)
+
+### 21. Synchronisation des Fonctions Serverless
+- **Problème** : `api/generate-lesson.ts` ne bénéficiait pas des correctifs de robustesse du serveur local.
+- **Solution** : Port du code de `api-server.ts` vers la fonction Vercel (Markdown stripping, parsing JSON flexible, split du contenu).
+- **Dépendances** : Ajout de `@vercel/node` pour le support TypeScript natif sur Vercel.
+
+**Statut Actuel** : 🚀 **Vercel Ready**.
