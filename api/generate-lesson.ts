@@ -6,31 +6,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { topic, levelId } = req.body;
+    const { topic, levelId } = req.body || {};
 
     if (!topic || !levelId) {
-      return res.status(400).json({ error: 'Missing topic or levelId' });
+      return res.status(400).json({ 
+        error: 'Missing topic or levelId', 
+        received: req.body 
+      });
     }
 
-    const prompt = `أَنْتَ عَالِمٌ وَبَاحِثٌ مَالِكِيٌّ رَفِيعُ المُسْتَوَى. قُمْ بِإِعْدَادِ دَرْسٍ لِـ "${topic}" بِمُسْتَوَى "${levelId}" يُعَادِلُ الدِّرَاسَاتِ العُلْيَا فِي المَعَاهِدِ الشَّرْعِيَّةِ الكُبْرَى.
-
-      يَجِبُ أَنْ يَكُونَ المُحْتَوَى "سَخِيًّا بِالعِلْمِ" وَكَثِيفًا وَمُوَجَّهًا لِطُلَّابِ العِلْمِ الجَادِّينَ، مَعَ الِالْتِزَامِ التَّامِّ بِمَذْهَبِ الإِمَامِ مَالِكِ بْنِ أَنَسٍ وَالمُصْطَلَحَاتِ الدَّقِيقَةِ (المُعْتَمَد، الأَشْهَر، المَشْهُور، مَا جَرَى بِهِ العَمَل).
-
-      الهَيْكَلُ المَطْلُوبُ (8 أَجْزَاءٍ أَسَاسِيَّةٍ):
-      1. nazmOrMatn: نَصٌّ مُوَثَّقٌ مِنَ المَصَادِرِ المَالِكِيَّةِ الأَصْلِيَّةِ.
-      2. content: تَقْرِيرٌ فِقْهِيٌّ مَتِينٌ يَشْرَحُ المَسَائِلَ بِعُمْقٍ.
-      3. evidence: اسْتِخْرَاجُ الأَحْكَامِ بِالمَنْهَجِيَّةِ الأُصُولِيَّةِ.
-      4. examples: حَالَاتٌ نَادِرَةٌ أَوْ مُعَاصِرَةٌ.
-      5. riddles: لُغْزٌ فِقْهِيٌّ.
-      6. comparativeFiqh: تَحْلِيلُ الخِلَافِ العَالِي مَعَ تَرْجِيحِ المَالِكِيَّةِ.
-      7. references: التَّوْثِيقُ مِنَ المَصَادِرِ الأُمِّ.
-      8. quiz: 7 أَسْئِلَةٍ مَنْهَجِيَّةٍ دَقِيقَةٍ.
-
-      أَرْجِعِ النَّتِيجَةَ بِصِيغَةِ JSON حَصْرًا. تَقَيَّدْ بِالتَّشْكِيلِ الكَامِلِ.
-      مُلَاحَظَةٌ هَامَّةٌ: لَا تَضَعِ اسْمَ المُسْتَوَى فِي حَقْلِ الـ "title".`;
-
     const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) throw new Error('OpenRouter API key is not configured');
+    if (!apiKey) {
+      return res.status(500).json({ 
+        error: 'OpenRouter API key is not configured in Vercel environment variables.' 
+      });
+    }
+
+    const prompt = `أَنْتَ عَالِمٌ وَبَاحِثٌ مَالِكِيٌّ رَفِيعُ المُسْتَوَى. قُمْ بِإِعْدَادِ دَرْسٍ لِـ "${topic}" بِمُسْتَوَى "${levelId}".
+      أَرْجِعِ النَّتِيجَةَ بِصِيغَةِ JSON حَصْرًا. تَقَيَّدْ بِالتَّشْكِيلِ الكَامِلِ.
+      الهَيْكَلُ المَطْلُوبُ: nazmOrMatn, content, evidence, examples, riddles, comparativeFiqh, references, quiz.`;
 
     const model = 'google/gemini-2.0-flash-001';
     
@@ -51,25 +45,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      const errorMsg = data.error?.message || `API Error ${response.status}`;
-      throw new Error(`OpenRouter Error: ${errorMsg}`);
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      return res.status(500).json({ 
+        error: 'OpenRouter returned non-JSON response', 
+        rawResponse: responseText.substring(0, 500) 
+      });
     }
 
-    const responseText = data.choices?.[0]?.message?.content;
-    if (!responseText) throw new Error('No content received from model');
+    if (!response.ok) {
+      return res.status(response.status).json({ 
+        error: `OpenRouter Error: ${data.error?.message || 'Unknown error'}`,
+        code: data.error?.code 
+      });
+    }
+
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      return res.status(500).json({ 
+        error: 'No content received from OpenRouter choices', 
+        data: data 
+      });
+    }
 
     // --- ROBUST JSON EXTRACTION ---
     let jsonStr = '';
-    const startIdx = responseText.indexOf('{');
-    const endIdx = responseText.lastIndexOf('}');
+    const startIdx = content.indexOf('{');
+    const endIdx = content.lastIndexOf('}');
     
     if (startIdx !== -1 && endIdx !== -1) {
-      jsonStr = responseText.substring(startIdx, endIdx + 1);
+      jsonStr = content.substring(startIdx, endIdx + 1);
     } else {
-      jsonStr = responseText.trim();
+      jsonStr = content.trim();
     }
 
     try {
@@ -97,12 +107,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.status(200).json(result);
     } catch (parseErr) {
-      console.error('JSON Parse Error. Cleaned string:', jsonStr.substring(0, 500));
-      throw new Error('Le modèle a renvoyé un format invalide. Réessayez.');
+      return res.status(500).json({ 
+        error: 'JSON Parse Error of AI content', 
+        snippet: jsonStr.substring(0, 500) 
+      });
     }
 
   } catch (error: any) {
-    console.error('API Error:', error.message);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ 
+      error: 'Final Handler Crash', 
+      message: error.message 
+    });
   }
 }
