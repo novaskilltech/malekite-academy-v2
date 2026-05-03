@@ -136,3 +136,8 @@ Ce document trace l'évolution technique et académique du projet. Toute modific
 - **Dépendances** : Ajout de `@vercel/node` pour le support TypeScript natif sur Vercel.
 
 **Statut Actuel** : 🚀 **Vercel Ready**.
+
+### 22. Hotfix : Crash Supabase en Production (01:21)
+- **Problème** : L'application crashe en production si les variables `VITE_SUPABASE_*` ne sont pas encore configurées sur Vercel.
+- **Solution** : Initialisation conditionnelle de `supabase` (export `null` au lieu de crasher).
+- **Impact** : L'app se charge correctement et utilise `localStorage` en attendant la configuration Supabase.
