@@ -141,3 +141,8 @@ Ce document trace l'évolution technique et académique du projet. Toute modific
 - **Problème** : L'application crashe en production si les variables `VITE_SUPABASE_*` ne sont pas encore configurées sur Vercel.
 - **Solution** : Initialisation conditionnelle de `supabase` (export `null` au lieu de crasher).
 - **Impact** : L'app se charge correctement et utilise `localStorage` en attendant la configuration Supabase.
+
+### 23. Robustesse de l'extraction JSON en Production (01:27)
+- **Problème** : Erreurs 500 intermittentes dues à des réponses IA contenant du texte superflu autour du JSON.
+- **Solution** : Passage d'un nettoyage par blocs markdown à une extraction par bornes `{ ... }`.
+- **Impact** : Réduction drastique des erreurs de parsing JSON sur OpenRouter/Vercel.

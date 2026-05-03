@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       8. quiz: 7 أَسْئِلَةٍ مَنْهَجِيَّةٍ دَقِيقَةٍ.
 
       أَرْجِعِ النَّتِيجَةَ بِصِيغَةِ JSON حَصْرًا. تَقَيَّدْ بِالتَّشْكِيلِ الكَامِلِ.
-      مُلَاحَظَةٌ هَامَّةٌ: لَا تَضَعِ اسْمَ المُسْتَوَى (مِثْلُ: "مُبْتَدِئ" أَوْ "BEGINNER") فِي حَقْلِ الـ "title"، بَلِ اكْتَفِ بِعُنْوَانِ الدَّرْسِ فَقَطْ.`;
+      مُلَاحَظَةٌ هَامَّةٌ: لَا تَضَعِ اسْمَ المُسْتَوَى فِي حَقْلِ الـ "title".`;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) throw new Error('OpenRouter API key is not configured');
@@ -61,16 +61,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const responseText = data.choices?.[0]?.message?.content;
     if (!responseText) throw new Error('No content received from model');
 
-    let jsonStr = responseText.trim();
-    if (jsonStr.startsWith('```json')) {
-      jsonStr = jsonStr.slice(7);
-    } else if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.slice(3);
+    // --- ROBUST JSON EXTRACTION ---
+    let jsonStr = '';
+    const startIdx = responseText.indexOf('{');
+    const endIdx = responseText.lastIndexOf('}');
+    
+    if (startIdx !== -1 && endIdx !== -1) {
+      jsonStr = responseText.substring(startIdx, endIdx + 1);
+    } else {
+      jsonStr = responseText.trim();
     }
-    if (jsonStr.endsWith('```')) {
-      jsonStr = jsonStr.slice(0, -3);
-    }
-    jsonStr = jsonStr.trim();
 
     try {
       const parsed = JSON.parse(jsonStr);
@@ -78,13 +78,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const contentStr = parsed.content || '';
       const contentArray = typeof contentStr === 'string' 
         ? contentStr.split(/\n\s*\n|\.\s*\n|\.(?=\s*[A-Zأ-ي])/).map((s: string) => s.trim()).filter((s: string) => s.length > 20)
-        : contentStr;
+        : (Array.isArray(contentStr) ? contentStr : [contentStr]);
 
       const result = {
         title: parsed.title || `${topic} - ${levelId}`,
         nazmOrMatn: parsed.nazmOrMatn || '',
         introduction: parsed.introduction || '',
-        content: Array.isArray(contentArray) && contentArray.length > 0 ? contentArray : [contentStr],
+        content: contentArray.length > 0 ? contentArray : [contentStr],
         evidence: parsed.evidence || '',
         examples: parsed.examples || [],
         importantIssues: parsed.importantIssues || [],
@@ -97,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.status(200).json(result);
     } catch (parseErr) {
-      console.error('JSON Parse Error:', jsonStr.substring(0, 500));
+      console.error('JSON Parse Error. Cleaned string:', jsonStr.substring(0, 500));
       throw new Error('Le modèle a renvoyé un format invalide. Réessayez.');
     }
 
