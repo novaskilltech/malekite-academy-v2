@@ -146,3 +146,8 @@ Ce document trace l'évolution technique et académique du projet. Toute modific
 - **Problème** : Erreurs 500 intermittentes dues à des réponses IA contenant du texte superflu autour du JSON.
 - **Solution** : Passage d'un nettoyage par blocs markdown à une extraction par bornes `{ ... }`.
 - **Impact** : Réduction drastique des erreurs de parsing JSON sur OpenRouter/Vercel.
+
+### 24. Optimisation de la performance (Timeout Vercel) (01:31)
+- **Problème** : Erreur 500 systématique en production due au timeout de 10s de Vercel Hobby (Gemini Pro trop lent).
+- **Solution** : Passage au modèle `Gemini 2.0 Flash` pour l'API serverless.
+- **Impact** : Réponses en < 5s, conformité avec les limites Vercel.
